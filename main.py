@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
 import uuid
+import os
+import bcrypt
 from collections import defaultdict 
 
 app = Flask(__name__)
@@ -29,7 +31,9 @@ def register_user():
         name = data['name']
         email = data['email']
         password=data['password']
-
+        salt = bcrypt.gensalt(rounds=15)
+        hashed_password = str(bcrypt.hashpw(password.encode('utf-8'), bytes(salt)))
+        
         # Generate a unique user ID
         user_id = f'{uuid.uuid4()}'
     
@@ -45,7 +49,7 @@ def register_user():
             "_id": user_id,
             "name": name,
             "email": email,
-            "password":password,
+            "password":hashed_password,
             "friends": []  # Initialize empty friend list
         }
         usercollection.insert_one(user)
@@ -210,6 +214,7 @@ def search_user_by_email():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False)
+if __name__ == "__main__": 
+    port = int(os.environ.get("PORT", 5000)) 
+    app.run(host="0.0.0.0", port=port, debug=True)
 
