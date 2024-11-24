@@ -165,8 +165,50 @@ def get_user_balance(user_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/users', methods=['GET'])
+def get_users():
+    try:
+        # Fetch all users from the collection
+        splitwiseocollection=db.splitwise
+        user_collection=splitwiseocollection.users
+        users = user_collection.find({}, {"_id": 0, "user_id": 1, "name": 1, "email": 1})  # Exclude MongoDB `_id`
 
+        # Convert to a list of dictionaries
+        user_list = list(users)
 
+        # Check if users exist
+        if not user_list:
+            return jsonify({"message": "No users found."}), 404
 
+        return jsonify({"users": user_list}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/search_user', methods=['GET'])
+def search_user_by_email():
+    try:
+        # Get the email from query parameters
+        email = request.args.get('email')
+        
+        if not email:
+            return jsonify({"error": "Email parameter is required."}), 400
+
+        # Search for the user by email
+        splitwiseocollection=db.splitwise
+        user_collection=splitwiseocollection.users
+        users = list(user_collection.find(
+            {"email": {"$regex": email, "$options": "i"}},  # Case-insensitive match
+            {"_id": 0, "user_id": 1, "name": 1, "email": 1}  # Exclude `_id`, include other fields
+        ))
+
+        # If user is not found
+        if not users:
+            return jsonify({"message": "User not found."}), 404
+
+        return jsonify({"user": users}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 if __name__ == "__main__":
     app.run(debug=True)
