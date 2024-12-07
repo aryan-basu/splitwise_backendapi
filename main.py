@@ -175,7 +175,7 @@ def get_users():
         # Fetch all users from the collection
         splitwiseocollection=db.splitwise
         user_collection=splitwiseocollection.users
-        users = user_collection.find({}, {"_id": 0, "user_id": 1, "name": 1, "email": 1})  # Exclude MongoDB `_id`
+        users = user_collection.find({}, {"_id": 1, "user_id": 1, "name": 1, "email": 1})  # Exclude MongoDB `_id`
 
         # Convert to a list of dictionaries
         user_list = list(users)
