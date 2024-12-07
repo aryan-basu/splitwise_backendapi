@@ -172,13 +172,34 @@ def get_user_balance(user_id):
 @app.route('/users', methods=['GET'])
 def get_users():
     try:
-        # Fetch all users from the collection
-        splitwiseocollection=db.splitwise
-        user_collection=splitwiseocollection.users
-        users = user_collection.find({}, {"_id": 1, "user_id": 1, "name": 1, "email": 1})  # Exclude MongoDB `_id`
+        # Extract user_id from the header
+        user_id = request.headers.get('user-id')
+        if not user_id:
+            return jsonify({"error": "user_id header is missing"}), 400
 
-        # Convert to a list of dictionaries
-        user_list = list(users)
+        # Fetch collections
+        splitwise_collection = db.splitwise
+        user_collection = splitwise_collection.users
+
+        # Get the current user's friends list
+        current_user = user_collection.find_one({"_id": user_id}, {"friends": 1})
+        if not current_user:
+            return jsonify({"error": "Current user not found"}), 404
+
+        friends = current_user.get("friends", [])
+
+        # Fetch all users excluding the current user
+        users = user_collection.find(
+            {"_id": {"$ne": user_id}},
+            {"_id": 1, "user_id": 1, "name": 1, "email": 1}
+        )
+
+        # Convert to a list of dictionaries and add `is_friend` field
+        user_list = []
+        for user in users:
+            user["_id"] = str(user["_id"])  # Convert ObjectId to string if necessary
+            user["is_friend"] = user["_id"] in friends
+            user_list.append(user)
 
         # Check if users exist
         if not user_list:
@@ -188,6 +209,51 @@ def get_users():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/addfriends/<user_id>', methods=['POST'])
+def add_friend(user_id):
+    try:
+        # Extract current user's ID from the header
+        current_user_id = request.headers.get('user-id')
+     
+        if not current_user_id:
+            return jsonify({"error": "user_id header is missing"}), 400
+
+        # Fetch collections
+        splitwise_collection = db.splitwise
+        user_collection = splitwise_collection.users
+
+        # Check if the current user exists
+        current_user = user_collection.find_one({"_id": current_user_id})
+        if not current_user:
+            return jsonify({"error": "Current user not found"}), 404
+
+        # Check if the user to be added as a friend exists
+        friend_user = user_collection.find_one({"_id": user_id})
+        if not friend_user:
+            return jsonify({"error": f"User with id {user_id} not found"}), 404
+
+        # Check if the user is already a friend of the current user
+        if user_id in current_user.get("friends", []):
+            return jsonify({"message": "This user is already a friend"}), 400
+
+        # Add the user to the current user's friends array
+        user_collection.update_one(
+            {"_id": current_user_id},
+            {"$addToSet": {"friends": user_id}}  # Ensures no duplicates
+        )
+
+        # Add the current user to the target user's friends array
+        user_collection.update_one(
+            {"_id": user_id},
+            {"$addToSet": {"friends": current_user_id}}  # Ensures no duplicates
+        )
+
+        return jsonify({"message": f"User {user_id} and {current_user_id} are now friends"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/search_user', methods=['GET'])
 def search_user_by_email():
