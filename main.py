@@ -27,6 +27,38 @@ def home():
     except Exception as e:
         return f"An error occurred: {e}"
 
+@app.route('/login', methods=['POST'])
+def login_user():
+    try:
+        # Extract email and password from the request body
+        data = request.json
+        email = data['email']
+        password = data['password']
+        
+        # Fetch the user from the database
+        splitwiseocollection=db.splitwise
+        usercollection=splitwiseocollection.users
+        user = usercollection.find_one({"email": email})
+        
+        if not user:
+            return jsonify({"message": "Invalid email or password!"}), 401
+        
+        # Check if the provided password matches the stored hashed password
+        stored_hashed_password = user["password"].encode('utf-8')  # Ensure it's bytes
+        if not bcrypt.checkpw(password.encode('utf-8'), eval(stored_hashed_password)):
+            return jsonify({"message": "Invalid email or password!"}), 401
+
+        # Authentication successful
+        return jsonify({
+            "message": "Login successful!",
+            "user_id": user["_id"],
+            "name": user["name"],
+            "email": user["email"]
+        }), 200
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 
 @app.route('/register_user', methods=['POST'])
 def register_user():
