@@ -204,7 +204,6 @@ def get_user_balance(user_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 @app.route('/users', methods=['GET'])
 def get_users():
     try:
@@ -212,6 +211,9 @@ def get_users():
         user_id = request.headers.get('user-id')
         if not user_id:
             return jsonify({"error": "user_id header is missing"}), 400
+
+        # Extract search query parameter
+        search_query = request.args.get('q', '').strip()
 
         # Fetch collections
         splitwise_collection = db.splitwise
@@ -224,9 +226,18 @@ def get_users():
 
         friends = current_user.get("friends", [])
 
-        # Fetch all users excluding the current user
+        # Build query filter
+        query_filter = {"_id": {"$ne": user_id}}
+        if search_query:
+            # Add search condition for name or email
+            query_filter["$or"] = [
+                {"name": {"$regex": search_query, "$options": "i"}},
+                {"email": {"$regex": search_query, "$options": "i"}}
+            ]
+
+        # Fetch users based on the filter
         users = user_collection.find(
-            {"_id": {"$ne": user_id}},
+            query_filter,
             {"_id": 1, "user_id": 1, "name": 1, "email": 1}
         )
 
@@ -245,6 +256,7 @@ def get_users():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/addfriends/<user_id>', methods=['POST'])
 def add_friend(user_id):
