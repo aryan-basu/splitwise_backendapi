@@ -3,9 +3,13 @@ from pymongo import MongoClient
 import uuid
 import os
 import bcrypt
+from flask_cors import CORS
 from collections import defaultdict 
 
 app = Flask(__name__)
+
+# Enable CORS for all routes and origins
+CORS(app)
 client = MongoClient('mongodb+srv://aryanbasu005:Qwerty1234@devdataset.6ghws.mongodb.net/splitwise?retryWrites=true&w=majority')
 db = client  
 @app.route("/")
