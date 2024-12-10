@@ -5,6 +5,8 @@ import os
 import bcrypt
 from flask_cors import CORS
 from collections import defaultdict 
+from datetime import datetime
+
 
 app = Flask(__name__)
 
@@ -153,7 +155,8 @@ def add_transaction():
 
         # Generate unique transaction ID
         txn_id = str(uuid.uuid4())
-        
+        # Get current timestamp
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         # Create transaction record
         transaction = {
             "_id": txn_id,
@@ -163,7 +166,7 @@ def add_transaction():
             "split_among": split_among,
             "split_type": split_type,
             "split_details": split_details,
-            "date":'22 june'
+            "date":timestamp,
         }
         splitwiseocollection=db.splitwise
         splitwiseocollection.transactions.insert_one(transaction)
