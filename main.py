@@ -95,6 +95,41 @@ def register_user():
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
+@app.route('/friends', methods=['GET'])
+def get_friends():
+    try:
+        # Get the user-id from headers
+        user_id = request.headers.get('user-id')
+        if not user_id:
+            return jsonify({"error": "user-id header is required"}), 400
+
+        # Fetch the user from the database
+        splitwiseocollection=db.splitwise
+        user_collection=splitwiseocollection.users
+        user = user_collection.find_one({"_id": user_id})
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        # Get friends array from the user document
+        friend_ids = user.get("friends", [])
+        
+        # Fetch additional info for each friend
+        friends_info = []
+        for friend_id in friend_ids:
+            friend = user_collection.find_one({"_id": friend_id}, {"_id": 1, "name": 1, "email": 1})
+            if friend:
+                friends_info.append({
+                    "friend_id": friend["_id"],
+                    "name": friend["name"],
+                    "email": friend["email"]
+                })
+
+        return jsonify({"user_id": user_id, "friends": friends_info}), 200
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"error": "An error occurred while fetching friends"}), 500
+
 @app.route('/add_transaction', methods=['POST'])
 def add_transaction():
 
