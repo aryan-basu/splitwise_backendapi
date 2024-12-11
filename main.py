@@ -174,13 +174,12 @@ def add_transaction():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 400
-    
 @app.route('/balance/<user_id>', methods=['GET'])
 def get_user_balance(user_id):
     try:
         # Database collections
         print(uuid.uuid4())
-        splitwiseocollection=db.splitwise
+        splitwiseocollection = db.splitwise
         transactions_collection = splitwiseocollection.transactions
         users_collection = splitwiseocollection.users
 
@@ -201,18 +200,26 @@ def get_user_balance(user_id):
         for txn in transactions:
             if txn["paid_by"] == user_id:
                 # User is the payer, others owe them
-                
                 for friend_id, amount in txn["split_details"].items():
                     if friend_id != user_id:  # Exclude self from balance calculations
                         balance_map[friend_id]["relation"] = "lend"
                         balance_map[friend_id]["amount"] += amount
             elif user_id in txn["split_among"]:
-                
                 # User is part of the split, they owe the payer
                 payer_id = txn["paid_by"]
                 balance_map[payer_id]["relation"] = "owe"
                 balance_map[payer_id]["amount"] += txn["split_details"][user_id]
-                
+
+            # Handle case where the user paid for the entire transaction but is not in split_among
+            if txn["paid_by"] == user_id and user_id not in txn["split_among"]:
+                # Full amount should be considered as money owed by all participants
+                total_amount = txn["amount"]
+                num_people = len(txn["split_among"])
+                amount_per_person = total_amount / num_people if num_people > 0 else 0
+                for friend_id in txn["split_among"]:
+                    if friend_id != user_id:
+                        balance_map[friend_id]["relation"] = "owe"
+                        balance_map[friend_id]["amount"] += amount_per_person
 
         # Fetch details of friends involved
         friend_ids = list(balance_map.keys())
@@ -242,6 +249,7 @@ def get_user_balance(user_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 @app.route('/users', methods=['GET'])
 def get_users():
     try:
