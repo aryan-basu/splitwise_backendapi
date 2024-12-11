@@ -5,7 +5,7 @@ import os
 import bcrypt
 from flask_cors import CORS
 from collections import defaultdict 
-from datetime import datetime
+from datetime import datetime,timedelta
 
 
 app = Flask(__name__)
@@ -366,6 +366,89 @@ def search_user_by_email():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# Function to compute the monthly expense for a user
+def calculate_monthly_expense(transactions, user_id):
+    monthly_expense = defaultdict(float)
+
+    for txn in transactions:
+        # Parse the date and extract the month key
+        date = datetime.strptime(txn['date'], "%Y-%m-%d %H:%M:%S")
+        month_key = date.strftime("%Y-%m")
+
+        # Check if the user is part of the split
+        if user_id in txn['split_among']:
+            if txn['split_type'] == "equal":
+                # Calculate equal split share
+                share = txn['amount'] / len(txn['split_among'])
+                if txn['paid_by'] != user_id:  # You owe someone
+                    monthly_expense[month_key] += share
+                else:  # You paid, add only your share
+                    monthly_expense[month_key] += share
+            
+            elif txn['split_type'] == "exact":
+                # Get exact share
+                share = txn['split_details'].get(user_id, 0)
+                if txn['paid_by'] != user_id:  # You owe someone
+                    monthly_expense[month_key] += share
+                else:  # You paid, add only your share
+                    monthly_expense[month_key] += share
+
+    return dict(monthly_expense)
+
+
+# Filter transactions for the past four months and prepare the response
+def get_expenses(user_id):
+    today = datetime.today()
+    four_months_ago = today - timedelta(days=120)  # Roughly 4 months window
+    
+    splitwiseocollection=db.splitwise
+    transactions_collection = splitwiseocollection.transactions
+    # Query transactions from the database
+    transactions = list(
+        transactions_collection.find({
+            "date": {"$gte": four_months_ago.strftime("%Y-%m-%d %H:%M:%S")},
+            "split_among": {"$in": [user_id]}  # Filter only transactions where user is a participant
+        })
+    )
+
+    # Process the filtered transactions
+    monthly_expenses = calculate_monthly_expense(transactions, user_id)
+    
+    # Convert the response to user-friendly month names
+    formatted_result = {
+        datetime.strptime(month, "%Y-%m").strftime("%b"): monthly_expenses.get(month, 0.0)
+        for month in sorted(monthly_expenses.keys())
+    }
+    
+    return formatted_result
+
+
+# API endpoint
+@app.route('/monthly_expense', methods=['POST'])
+def monthly_expenses_api():
+    try:
+        # Fetch user ID from request payload
+        data = request.json
+        user_id = data.get('user_id')
+
+        if not user_id:
+            return jsonify({"error": "User ID is required"}), 400
+
+        # Compute the expenses
+        expenses_summary = get_expenses(user_id)
+
+        return jsonify({
+            "message": "Expense computation successful",
+            "data": expenses_summary
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
 if __name__ == "__main__": 
     port = int(os.environ.get("PORT", 5000)) 
     app.run(host="0.0.0.0", port=port, debug=True)
