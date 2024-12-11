@@ -195,51 +195,38 @@ def get_user_balance(user_id):
             return jsonify({"message": "No transactions found for this user."}), 404
 
         # Calculate balances with friends
-        print(transactions)
-        balance_map = defaultdict(lambda: {"relation": None, "amount": 0})
+        balance_map = defaultdict(float)  # Store total balances as float values
+
         for txn in transactions:
             if txn["paid_by"] == user_id:
-                # User is the payer, others owe them
+                # User paid for others, they are the lender
                 for friend_id, amount in txn["split_details"].items():
                     if friend_id != user_id:  # Exclude self from balance calculations
-                        balance_map[friend_id]["relation"] = "lend"
-                        balance_map[friend_id]["amount"] += amount
+                        balance_map[friend_id] += amount  # User lent money to friend
+
             elif user_id in txn["split_among"]:
                 # User is part of the split, they owe the payer
                 payer_id = txn["paid_by"]
-                balance_map[payer_id]["relation"] = "owe"
-                balance_map[payer_id]["amount"] += txn["split_details"][user_id]
-
-            # Handle case where the user paid for the entire transaction but is not in split_among
-            if txn["paid_by"] == user_id and user_id not in txn["split_among"]:
-                # Full amount should be considered as money owed by all participants
-                total_amount = txn["amount"]
-                num_people = len(txn["split_among"])
-                amount_per_person = total_amount / num_people if num_people > 0 else 0
-                for friend_id in txn["split_among"]:
-                    if friend_id != user_id:
-                        balance_map[friend_id]["relation"] = "owe"
-                        balance_map[friend_id]["amount"] += amount_per_person
+                balance_map[payer_id] -= txn["split_details"][user_id]  # User owes money to payer
 
         # Fetch details of friends involved
         friend_ids = list(balance_map.keys())
-        # print(friend_ids)
         friends = list(users_collection.find({"_id": {"$in": friend_ids}}))
-        print(friends)
         friend_details = {
             str(friend["_id"]): {"name": friend["name"], "email": friend["email"]}
             for friend in friends
         }
 
-        # Prepare response
+        # Prepare response with the calculated relation (owe/lend) based on balance
         balances = []
-        for friend_id, balance_info in balance_map.items():
+        for friend_id, balance in balance_map.items():
+            relation = "owe" if balance < 0 else "lend"  # Negative balance means owe, positive means lend
             balances.append({
                 "friend_id": friend_id,
                 "name": friend_details.get(friend_id, {}).get("name", "Unknown"),
                 "email": friend_details.get(friend_id, {}).get("email", "Unknown"),
-                "relation": balance_info["relation"],
-                "amount": balance_info["amount"]
+                "relation": relation,
+                "amount": abs(balance)  # Absolute value of balance
             })
 
         return jsonify({
