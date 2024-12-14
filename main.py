@@ -55,7 +55,8 @@ def login_user():
             "message": "Login successful!",
             "user_id": user["_id"],
             "name": user["name"],
-            "email": user["email"]
+            "email": user["email"],
+            "profile_pic":user["profile_pic"]
         }), 200
     
     except Exception as e:
@@ -144,12 +145,13 @@ def get_friends():
         # Fetch additional info for each friend
         friends_info = []
         for friend_id in friend_ids:
-            friend = user_collection.find_one({"_id": friend_id}, {"_id": 1, "name": 1, "email": 1})
+            friend = user_collection.find_one({"_id": friend_id}, {"_id": 1, "name": 1, "email": 1,"profile_pic":1})
             if friend:
                 friends_info.append({
                     "friend_id": friend["_id"],
                     "name": friend["name"],
-                    "email": friend["email"]
+                    "email": friend["email"],
+                    "profile_pic":friend["profile_pic"]
                 })
 
         return jsonify({"user_id": user_id, "friends": friends_info}), 200
@@ -297,7 +299,7 @@ def get_users():
         # Fetch users based on the filter
         users = user_collection.find(
             query_filter,
-            {"_id": 1, "user_id": 1, "name": 1, "email": 1}
+            {"_id": 1, "user_id": 1, "name": 1, "email": 1,"profile_pic":1}
         )
 
         # Convert to a list of dictionaries and add `is_friend` field
