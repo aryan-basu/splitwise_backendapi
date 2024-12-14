@@ -81,7 +81,7 @@ def register_user():
             if 'profile_pic' not in existing_user or not existing_user['profile_pic']:
                 user_collection.update_one(
                     {"_id": existing_user["_id"]},
-                    {"$set": {"profile_pic": google_profile_pic}}
+                    {"$set": {"profile_pic": profile_pic}}
                 )
                 return jsonify({
                     "message": "User exists. Profile picture updated.",
