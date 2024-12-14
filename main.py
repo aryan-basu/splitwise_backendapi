@@ -67,7 +67,7 @@ def register_user():
         data = request.json
         name = data.get('name')
         email = data.get('email')
-        google_profile_pic = data.get('profile_pic', None)  # Optional profile pic from Google
+        profile_pic = data.get('profile_pic', None)  # Optional profile pic from Google
         password = data.get('password')  # Optional, in case of regular registration
         
         splitwise_collection = db.splitwise
@@ -109,7 +109,7 @@ def register_user():
             "name": name,
             "email": email,
             "password": hashed_password,
-            "profile_pic": google_profile_pic,  # Store the profile pic
+            "profile_pic": profile_pic,  # Store the profile pic
             "friends": []  # Initialize empty friend list
         }
         user_collection.insert_one(user)
