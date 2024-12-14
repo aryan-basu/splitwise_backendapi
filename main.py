@@ -61,41 +61,67 @@ def login_user():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
-
 @app.route('/register_user', methods=['POST'])
 def register_user():
     try:
         data = request.json
-        name = data['name']
-        email = data['email']
-        password=data['password']
+        name = data.get('name')
+        email = data.get('email')
+        google_profile_pic = data.get('profile_pic', None)  # Optional profile pic from Google
+        password = data.get('password')  # Optional, in case of regular registration
+        
+        splitwise_collection = db.splitwise
+        user_collection = splitwise_collection.users
+
+        # Check if the user already exists
+        existing_user = user_collection.find_one({"email": email})
+
+        if existing_user:
+            # Update profile pic if missing
+            if 'profile_pic' not in existing_user or not existing_user['profile_pic']:
+                user_collection.update_one(
+                    {"_id": existing_user["_id"]},
+                    {"$set": {"profile_pic": google_profile_pic}}
+                )
+                return jsonify({
+                    "message": "User exists. Profile picture updated.",
+                    "user_id": existing_user["_id"]
+                }), 200
+
+            return jsonify({
+                "message": "User with this email already exists!",
+                "user_id": existing_user["_id"]
+            }), 200
+
+        # If user doesn't exist, proceed with registration
+        if not password:
+            return jsonify({"message": "Password is required for new user registration!"}), 400
+
         salt = bcrypt.gensalt(rounds=15)
-        hashed_password = str(bcrypt.hashpw(password.encode('utf-8'), bytes(salt)))
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
         
         # Generate a unique user ID
-        user_id = f'{uuid.uuid4()}'
-    
-        splitwiseocollection=db.splitwise
-        usercollection=splitwiseocollection.users
-        # Check if the email already exists
-        existing_user = usercollection.find_one({"email": email})
-        if existing_user:
-            return jsonify({"message": "User with this email already exists!"}), 400
+        user_id = str(uuid.uuid4())
 
-        # Create user record
+        # Create new user record
         user = {
             "_id": user_id,
             "name": name,
             "email": email,
-            "password":hashed_password,
+            "password": hashed_password,
+            "profile_pic": google_profile_pic,  # Store the profile pic
             "friends": []  # Initialize empty friend list
         }
-        usercollection.insert_one(user)
+        user_collection.insert_one(user)
 
-        return jsonify({"message": "User registered successfully!", "user_id": user_id}), 201
+        return jsonify({
+            "message": "User registered successfully!",
+            "user_id": user_id
+        }), 201
 
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
 
 @app.route('/friends', methods=['GET'])
 def get_friends():
