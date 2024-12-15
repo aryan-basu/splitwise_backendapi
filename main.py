@@ -413,7 +413,7 @@ def calculate_monthly_expense(transactions, user_id):
                     monthly_expense[month_key] += share
                 else:  # You paid, add only your share
                     monthly_expense[month_key] += share
-            
+
             elif txn['split_type'] == "exact":
                 # Get exact share
                 share = txn['split_details'].get(user_id, 0)
@@ -429,10 +429,16 @@ def calculate_monthly_expense(transactions, user_id):
 def get_expenses(user_id):
     today = datetime.today()
     four_months_ago = today - timedelta(days=120)  # Roughly 4 months window
+
+    # Generate the list of past four months
+    past_four_months = [
+        (today - timedelta(days=30 * i)).strftime("%Y-%m")
+        for i in range(4)
+    ]
     
-    splitwiseocollection=db.splitwise
-    transactions_collection = splitwiseocollection.transactions
     # Query transactions from the database
+    splitwiseocollection = db.splitwise
+    transactions_collection = splitwiseocollection.transactions
     transactions = list(
         transactions_collection.find({
             "date": {"$gte": four_months_ago.strftime("%Y-%m-%d %H:%M:%S")},
@@ -442,13 +448,18 @@ def get_expenses(user_id):
 
     # Process the filtered transactions
     monthly_expenses = calculate_monthly_expense(transactions, user_id)
-    
+
+    # Add zero for months with no expenses
+    for month in past_four_months:
+        if month not in monthly_expenses:
+            monthly_expenses[month] = 0.0
+
     # Convert the response to user-friendly month names
     formatted_result = {
         datetime.strptime(month, "%Y-%m").strftime("%b"): monthly_expenses.get(month, 0.0)
-        for month in sorted(monthly_expenses.keys())
+        for month in past_four_months  # Ensure the output respects the order of the last four months
     }
-    
+
     return formatted_result
 
 
