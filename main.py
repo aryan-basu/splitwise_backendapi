@@ -86,12 +86,15 @@ def register_user():
                 )
                 return jsonify({
                     "message": "User exists. Profile picture updated.",
-                    "user_id": existing_user["_id"]
+                    "user_id": existing_user["_id"],
+                    "profile_pic":existing_user["profile_pic"]
+            
                 }), 200
 
             return jsonify({
                 "message": "User with this email already exists!",
-                "user_id": existing_user["_id"]
+                "user_id": existing_user["_id"],
+                "profile_pic":existing_user["profile_pic"]
             }), 200
 
         # If user doesn't exist, proceed with registration
@@ -117,7 +120,8 @@ def register_user():
 
         return jsonify({
             "message": "User registered successfully!",
-            "user_id": user_id
+            "user_id": user_id,
+            "profile_pic":profile_pic
         }), 201
 
     except Exception as e:
