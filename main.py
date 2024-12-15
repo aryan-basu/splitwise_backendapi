@@ -206,7 +206,6 @@ def add_transaction():
 def get_user_balance(user_id):
     try:
         # Database collections
-        print(uuid.uuid4())
         splitwiseocollection = db.splitwise
         transactions_collection = splitwiseocollection.transactions
         users_collection = splitwiseocollection.users
@@ -219,8 +218,12 @@ def get_user_balance(user_id):
             ]
         }))
 
+        # If no transactions are found, return an empty balances array
         if not transactions:
-            return jsonify({"message": "No transactions found for this user."}), 404
+            return jsonify({
+                "user_id": user_id,
+                "balances": []  # Return an empty array
+            }), 200
 
         # Calculate balances with friends
         balance_map = defaultdict(float)  # Store total balances as float values
@@ -264,6 +267,7 @@ def get_user_balance(user_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/users', methods=['GET'])
 def get_users():
