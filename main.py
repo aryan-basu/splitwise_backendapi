@@ -399,15 +399,23 @@ def search_user_by_email():
         return jsonify({"error": str(e)}), 500
 
 
-# Function to compute the monthly expense for a user
 def calculate_monthly_expense(transactions, user_id):
     monthly_expense = defaultdict(float)
-
+    today = datetime.today()
+    
     for txn in transactions:
         # Parse the date and extract the month key
-        date = datetime.strptime(txn['date'], "%Y-%m-%d %H:%M:%S")
-        month_key = date.strftime("%Y-%m")
-
+        date = datetime.strptime(txn['date'], "%d %B")
+        
+        # Calculate the year: if the month is before the current month, subtract 1 from the year
+        if date.month < today.month:
+            year = today.year
+        else:
+            year = today.year - 1  # Adjust for December transactions
+        
+        # Combine the calculated year and the month to form the 'YYYY-MM' format
+        month_key = f"{year}-{date.month:02d}"
+        
         # Check if the user is part of the split
         if user_id in txn['split_among']:
             if txn['split_type'] == "equal":
@@ -432,6 +440,7 @@ def calculate_monthly_expense(transactions, user_id):
 # Filter transactions for the past four months and prepare the response
 def get_expenses(user_id):
     today = datetime.today()
+     
     four_months_ago = today - timedelta(days=120)  # Roughly 4 months window
 
     # Generate the list of past four months
@@ -449,6 +458,7 @@ def get_expenses(user_id):
             "split_among": {"$in": [user_id]}  # Filter only transactions where user is a participant
         })
     )
+    
 
     # Process the filtered transactions
     monthly_expenses = calculate_monthly_expense(transactions, user_id)
@@ -463,7 +473,7 @@ def get_expenses(user_id):
         datetime.strptime(month, "%Y-%m").strftime("%b"): monthly_expenses.get(month, 0.0)
         for month in past_four_months  # Ensure the output respects the order of the last four months
     }
-
+  
     return formatted_result
 
 
@@ -474,7 +484,7 @@ def monthly_expenses_api():
         # Fetch user ID from request payload
         data = request.json
         user_id = data.get('user_id')
-
+        print(data)
         if not user_id:
             return jsonify({"error": "User ID is required"}), 400
 
@@ -487,7 +497,7 @@ def monthly_expenses_api():
         }), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error hello": str(e)}), 500
 
 
 
